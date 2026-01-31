@@ -62,7 +62,7 @@ public class Payload {
         return fields.isEmpty();
     }
     
-    // ========== Convenience getters ==========
+    // Field getters
     
     public String getUsername() {
         TlvField field = fields.get(TlvType.USERNAME);
@@ -104,7 +104,7 @@ public class Payload {
         return field != null ? field.getStringValue() : null;
     }
     
-    // ========== Encoding ==========
+    // Encoding
     
     /**
      * Encode payload to bytes
@@ -134,7 +134,7 @@ public class Payload {
         return length;
     }
     
-    // ========== Decoding ==========
+    // Decoding
     
     /**
      * Decode payload from bytes
@@ -175,7 +175,7 @@ public class Payload {
         return payload;
     }
     
-    // ========== Validation ==========
+    // Validation
     
     /**
      * Validate that all required TLVs are present for an operation
@@ -203,12 +203,13 @@ public class Payload {
     public static List<TlvType> getRequiredFields(OpCode opCode) {
         switch (opCode) {
             case OPEN_ACCOUNT:
-                return Arrays.asList(TlvType.USERNAME, TlvType.PASSWORD, TlvType.CURRENCY);
+                return Arrays.asList(TlvType.USERNAME, TlvType.PASSWORD, TlvType.CURRENCY, TlvType.AMOUNT_CENTS);
             case CLOSE_ACCOUNT:
                 return Arrays.asList(TlvType.USERNAME, TlvType.PASSWORD, TlvType.ACCOUNT_NO);
             case DEPOSIT:
             case WITHDRAW:
-                return Arrays.asList(TlvType.USERNAME, TlvType.PASSWORD, TlvType.ACCOUNT_NO, TlvType.AMOUNT_CENTS);
+                return Arrays.asList(TlvType.USERNAME, TlvType.PASSWORD, TlvType.ACCOUNT_NO, 
+                    TlvType.CURRENCY, TlvType.AMOUNT_CENTS);
             case REGISTER_CALLBACK:
                 return Arrays.asList(TlvType.TTL_SECONDS);
             case UNREGISTER_CALLBACK:

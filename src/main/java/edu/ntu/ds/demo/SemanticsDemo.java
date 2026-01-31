@@ -104,10 +104,10 @@ public class SemanticsDemo {
         String username2 = "bob_" + label.toLowerCase() + "_" + System.currentTimeMillis();
         
         try {
-            // Step 1: Create accounts
-            System.out.println("\n[Step 1] Creating two accounts...");
+            // Step 1: Create accounts with $1000 initial balance
+            System.out.println("\n[Step 1] Creating two accounts with $1000 each...");
             
-            Message openReq1 = client1.createOpenAccountRequest(username1, PASSWORD, Currency.SGD);
+            Message openReq1 = client1.createOpenAccountRequest(username1, PASSWORD, Currency.SGD, 100000L);
             Message openRep1 = client1.sendRequest(openReq1);
             if (openRep1 == null) {
                 throw new RuntimeException("Failed to create account 1 - timeout");
@@ -127,9 +127,11 @@ public class SemanticsDemo {
                 throw new RuntimeException("Failed to create account 1: " + openRep1.getHeader().getStatus());
             }
             String account1 = openRep1.getPayload().getAccountNo();
-            System.out.println("  Account 1 created: " + account1);
+            Long balance1Init = openRep1.getPayload().getAmountCents();
+            System.out.println("  Account 1 created: " + account1 + 
+                (balance1Init != null ? " (Balance: " + Logger.formatCents(balance1Init) + ")" : ""));
             
-            Message openReq2 = client2.createOpenAccountRequest(username2, PASSWORD, Currency.SGD);
+            Message openReq2 = client2.createOpenAccountRequest(username2, PASSWORD, Currency.SGD, 100000L);
             Message openRep2 = client2.sendRequest(openReq2);
             if (openRep2 == null) {
                 throw new RuntimeException("Failed to create account 2 - timeout");
@@ -143,27 +145,12 @@ public class SemanticsDemo {
                 throw new RuntimeException("Failed to create account 2: " + openRep2.getHeader().getStatus());
             }
             String account2 = openRep2.getPayload().getAccountNo();
-            System.out.println("  Account 2 created: " + account2);
+            Long balance2Init = openRep2.getPayload().getAmountCents();
+            System.out.println("  Account 2 created: " + account2 + 
+                (balance2Init != null ? " (Balance: " + Logger.formatCents(balance2Init) + ")" : ""));
             
-            // Step 2: Deposit initial funds
-            System.out.println("\n[Step 2] Depositing $1000 to each account...");
-            
-            Message depReq1 = client1.createDepositRequest(username1, PASSWORD, account1, 100000);
-            Message depRep1 = client1.sendRequest(depReq1);
-            if (depRep1 == null || depRep1.getHeader().getStatus() != StatusCode.OK) {
-                throw new RuntimeException("Failed to deposit to account 1");
-            }
-            System.out.println("  " + account1 + " balance: " + Logger.formatCents(depRep1.getPayload().getAmountCents()));
-            
-            Message depReq2 = client2.createDepositRequest(username2, PASSWORD, account2, 100000);
-            Message depRep2 = client2.sendRequest(depReq2);
-            if (depRep2 == null || depRep2.getHeader().getStatus() != StatusCode.OK) {
-                throw new RuntimeException("Failed to deposit to account 2");
-            }
-            System.out.println("  " + account2 + " balance: " + Logger.formatCents(depRep2.getPayload().getAmountCents()));
-            
-            // Step 3: Perform transfer (this is where semantics matter!)
-            System.out.println("\n[Step 3] Transferring $100 from Account 1 to Account 2...");
+            // Step 2: Perform transfer (this is where semantics matter!)
+            System.out.println("\n[Step 2] Transferring $100 from Account 1 to Account 2...");
             System.out.println("  Semantics: " + semantics);
             System.out.println("  (Watch for retries in the client log due to simulated reply loss)");
             
@@ -180,8 +167,8 @@ public class SemanticsDemo {
                 System.out.println("  Transfer failed: " + transferRep.getHeader().getStatus());
             }
             
-            // Step 4: Check final balances
-            System.out.println("\n[Step 4] Checking final balances...");
+            // Step 3: Check final balances
+            System.out.println("\n[Step 3] Checking final balances...");
             
             Message balReq1 = client1.createQueryBalanceRequest(username1, PASSWORD, account1);
             Message balRep1 = client1.sendRequest(balReq1);

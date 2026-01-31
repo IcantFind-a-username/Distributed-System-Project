@@ -127,21 +127,22 @@ public class BankClient {
     
     private void printHelp() {
         System.out.println("\nAvailable commands:");
-        System.out.println("  login <username> <password>     - Set credentials for operations");
-        System.out.println("  logout                          - Clear credentials");
-        System.out.println("  open <currency>                 - Open new account (SGD/USD/EUR/GBP/JPY/CNY)");
-        System.out.println("  close                           - Close current account");
-        System.out.println("  use <accountNo>                 - Set current account");
-        System.out.println("  deposit <amount>                - Deposit to current account");
-        System.out.println("  withdraw <amount>               - Withdraw from current account");
-        System.out.println("  balance                         - Query current account balance");
-        System.out.println("  transfer <toAccount> <amount>   - Transfer from current account");
-        System.out.println("  register <ttlSeconds>           - Register for callback notifications");
-        System.out.println("  unregister                      - Unregister from callbacks");
-        System.out.println("  semantics <ALO|AMO>             - Set invocation semantics");
-        System.out.println("  status                          - Show current session status");
-        System.out.println("  help                            - Show this help");
-        System.out.println("  quit                            - Exit client");
+        System.out.println("  login <username> <password>        - Set credentials for operations");
+        System.out.println("  logout                             - Clear credentials");
+        System.out.println("  open <currency> <initialBalance>   - Open new account (e.g., open SGD 1000)");
+        System.out.println("  close                              - Close current account");
+        System.out.println("  use <accountNo>                    - Set current account");
+        System.out.println("  deposit <currency> <amount>        - Deposit (e.g., deposit SGD 100)");
+        System.out.println("  withdraw <currency> <amount>       - Withdraw (e.g., withdraw SGD 50)");
+        System.out.println("  balance                            - Query current account balance");
+        System.out.println("  transfer <toAccount> <amount>      - Transfer from current account");
+        System.out.println("  register <ttlSeconds>              - Register for callback notifications");
+        System.out.println("  unregister                         - Unregister from callbacks");
+        System.out.println("  semantics <ALO|AMO>                - Set invocation semantics");
+        System.out.println("  status                             - Show current session status");
+        System.out.println("  help                               - Show this help");
+        System.out.println("  quit                               - Exit client");
+        System.out.println("\nCurrencies: SGD, USD, EUR, GBP, JPY, CNY");
     }
     
     private void printStatus() {
@@ -180,21 +181,29 @@ public class BankClient {
     private void handleOpenAccount(String args) throws IOException {
         if (!checkLoggedIn()) return;
         
-        if (args.isEmpty()) {
-            System.out.println("Usage: open <currency>");
+        String[] parts = args.split("\\s+");
+        if (parts.length < 2) {
+            System.out.println("Usage: open <currency> <initialBalance>");
             System.out.println("Currencies: SGD, USD, EUR, GBP, JPY, CNY");
+            System.out.println("Example: open SGD 1000");
             return;
         }
         
         Currency currency;
         try {
-            currency = Currency.valueOf(args.trim().toUpperCase());
+            currency = Currency.valueOf(parts[0].toUpperCase());
         } catch (IllegalArgumentException e) {
             System.out.println("Invalid currency. Use: SGD, USD, EUR, GBP, JPY, CNY");
             return;
         }
         
-        Message request = client.createOpenAccountRequest(currentUsername, currentPassword, currency);
+        long initialBalance = parseAmount(parts[1]);
+        if (initialBalance < 0) {
+            System.out.println("Invalid initial balance. Must be non-negative.");
+            return;
+        }
+        
+        Message request = client.createOpenAccountRequest(currentUsername, currentPassword, currency, initialBalance);
         Message reply = client.sendRequest(request);
         
         if (reply == null) {
@@ -204,8 +213,12 @@ public class BankClient {
         
         if (reply.getHeader().getStatus() == StatusCode.OK) {
             String accountNo = reply.getPayload().getAccountNo();
+            Long balance = reply.getPayload().getAmountCents();
             System.out.println("Account created successfully!");
             System.out.println("Account Number: " + accountNo);
+            if (balance != null) {
+                System.out.println("Initial Balance: " + Logger.formatCents(balance));
+            }
             currentAccountNo = accountNo;
         } else {
             System.out.println("Failed: " + reply.getHeader().getStatus().getDescription());
@@ -240,19 +253,29 @@ public class BankClient {
         if (!checkLoggedIn()) return;
         if (!checkAccountSelected()) return;
         
-        if (args.isEmpty()) {
-            System.out.println("Usage: deposit <amount>");
-            System.out.println("Amount can be decimal (e.g., 100.50) or cents with 'c' suffix (e.g., 10050c)");
+        String[] parts = args.split("\\s+");
+        if (parts.length < 2) {
+            System.out.println("Usage: deposit <currency> <amount>");
+            System.out.println("Currencies: SGD, USD, EUR, GBP, JPY, CNY");
+            System.out.println("Example: deposit SGD 100");
             return;
         }
         
-        long amountCents = parseAmount(args.trim());
+        Currency currency;
+        try {
+            currency = Currency.valueOf(parts[0].toUpperCase());
+        } catch (IllegalArgumentException e) {
+            System.out.println("Invalid currency. Use: SGD, USD, EUR, GBP, JPY, CNY");
+            return;
+        }
+        
+        long amountCents = parseAmount(parts[1]);
         if (amountCents <= 0) {
             System.out.println("Invalid amount. Must be positive.");
             return;
         }
         
-        Message request = client.createDepositRequest(currentUsername, currentPassword, currentAccountNo, amountCents);
+        Message request = client.createDepositRequest(currentUsername, currentPassword, currentAccountNo, currency, amountCents);
         Message reply = client.sendRequest(request);
         
         if (reply == null) {
@@ -263,7 +286,7 @@ public class BankClient {
         if (reply.getHeader().getStatus() == StatusCode.OK) {
             Long newBalance = reply.getPayload().getAmountCents();
             System.out.println("Deposit successful!");
-            System.out.println("Deposited: " + Logger.formatCents(amountCents));
+            System.out.println("Deposited: " + Logger.formatCents(amountCents) + " " + currency.name());
             if (newBalance != null) {
                 System.out.println("New balance: " + Logger.formatCents(newBalance));
             }
@@ -276,18 +299,29 @@ public class BankClient {
         if (!checkLoggedIn()) return;
         if (!checkAccountSelected()) return;
         
-        if (args.isEmpty()) {
-            System.out.println("Usage: withdraw <amount>");
+        String[] parts = args.split("\\s+");
+        if (parts.length < 2) {
+            System.out.println("Usage: withdraw <currency> <amount>");
+            System.out.println("Currencies: SGD, USD, EUR, GBP, JPY, CNY");
+            System.out.println("Example: withdraw SGD 100");
             return;
         }
         
-        long amountCents = parseAmount(args.trim());
+        Currency currency;
+        try {
+            currency = Currency.valueOf(parts[0].toUpperCase());
+        } catch (IllegalArgumentException e) {
+            System.out.println("Invalid currency. Use: SGD, USD, EUR, GBP, JPY, CNY");
+            return;
+        }
+        
+        long amountCents = parseAmount(parts[1]);
         if (amountCents <= 0) {
             System.out.println("Invalid amount. Must be positive.");
             return;
         }
         
-        Message request = client.createWithdrawRequest(currentUsername, currentPassword, currentAccountNo, amountCents);
+        Message request = client.createWithdrawRequest(currentUsername, currentPassword, currentAccountNo, currency, amountCents);
         Message reply = client.sendRequest(request);
         
         if (reply == null) {
@@ -499,7 +533,7 @@ public class BankClient {
         }
     }
     
-    // ========== Main ==========
+    // Main entry point
     
     public static void main(String[] args) {
         if (args.length < 2) {

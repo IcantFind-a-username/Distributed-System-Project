@@ -104,19 +104,21 @@ mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.client.MonitorClient" -Dexec.
 |---------|-------------|
 | `login <user> <pass>` | Set credentials for operations |
 | `logout` | Clear credentials |
-| `open <currency>` | Open new account (SGD/USD/EUR/GBP/JPY/CNY) |
+| `open <currency> <initialBalance>` | Open new account (e.g., `open SGD 1000`) |
 | `close` | Close current account |
-| `use <accountNo>` | Select an account |
-| `deposit <amount>` | Deposit funds |
-| `withdraw <amount>` | Withdraw funds |
-| `balance` | Query balance |
-| `transfer <to> <amount>` | Transfer to another account |
+| `use <accountNo>` | Select an account (e.g., `use 1001`) |
+| `deposit <currency> <amount>` | Deposit funds (e.g., `deposit SGD 100`) |
+| `withdraw <currency> <amount>` | Withdraw funds (e.g., `withdraw SGD 50`) |
+| `balance` | Query balance (idempotent operation) |
+| `transfer <to> <amount>` | Transfer to another account (non-idempotent) |
 | `register <ttl>` | Register for callback notifications |
 | `unregister` | Stop receiving callbacks |
 | `semantics <ALO\|AMO>` | Change invocation semantics |
 | `status` | Show current session info |
 | `help` | Show available commands |
 | `quit` | Exit client |
+
+**Currencies**: SGD, USD, EUR, GBP, JPY, CNY
 
 ## Protocol Specification (v1.1)
 
@@ -212,10 +214,9 @@ mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.arg
 Then in client:
 ```
 login alice secret123
-open SGD
-deposit 1000
+open SGD 1000
 balance
-transfer ACC-1002 100
+transfer 1002 100
 ```
 
 ### Terminal 4: Second Interactive Client (for receiving transfers)
@@ -225,7 +226,7 @@ mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.arg
 
 ```
 login bob pass456
-open SGD
+open SGD 500
 balance
 ```
 

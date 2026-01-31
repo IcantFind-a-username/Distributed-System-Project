@@ -57,7 +57,7 @@ public class RequestProcessor implements UdpServer.RequestHandler {
         Semantics semantics = reqHeader.getSemantics();
         OpCode opCode = reqHeader.getOpCode();
         
-        // ========== AMO Duplicate Check ==========
+        // Check for duplicate request (AMO semantics)
         if (semantics == Semantics.AMO) {
             byte[] cachedReply = amoCache.get(clientId, requestId);
             if (cachedReply != null) {
@@ -75,7 +75,7 @@ public class RequestProcessor implements UdpServer.RequestHandler {
             }
         }
         
-        // ========== Execute Operation ==========
+        // Execute the requested operation
         Message reply;
         boolean stateChanged = false;
         String affectedAccountNo = null;
@@ -92,18 +92,20 @@ public class RequestProcessor implements UdpServer.RequestHandler {
             
             switch (opCode) {
                 case OPEN_ACCOUNT:
+                    Long initialBalance = payload.getAmountCents();
                     result = bankingService.openAccount(
                         payload.getUsername(),
                         payload.getPassword(),
-                        payload.getCurrency()
+                        payload.getCurrency(),
+                        initialBalance != null ? initialBalance : 0L
                     );
                     reply = createReply(request, result);
                     if (result.status == StatusCode.OK) {
                         reply.addField(TlvField.accountNo(result.accountNo));
-                        reply.addField(TlvField.amountCents(0L)); // Initial balance
+                        reply.addField(TlvField.amountCents(result.balanceCents)); // Return initial balance
                         stateChanged = true;
                         affectedAccountNo = result.accountNo;
-                        newBalance = 0L;
+                        newBalance = result.balanceCents;
                     }
                     break;
                     
@@ -126,6 +128,7 @@ public class RequestProcessor implements UdpServer.RequestHandler {
                         payload.getUsername(),
                         payload.getPassword(),
                         payload.getAccountNo(),
+                        payload.getCurrency(),  // Currency type for validation
                         payload.getAmountCents()
                     );
                     reply = createReply(request, result);
@@ -142,6 +145,7 @@ public class RequestProcessor implements UdpServer.RequestHandler {
                         payload.getUsername(),
                         payload.getPassword(),
                         payload.getAccountNo(),
+                        payload.getCurrency(),  // Currency type for validation
                         payload.getAmountCents()
                     );
                     reply = createReply(request, result);
@@ -226,14 +230,14 @@ public class RequestProcessor implements UdpServer.RequestHandler {
             reply = Message.createReply(request, StatusCode.INTERNAL_ERROR);
         }
         
-        // ========== Cache reply for AMO ==========
+        // Cache reply for AMO semantics
         if (semantics == Semantics.AMO) {
             byte[] replyBytes = reply.encode();
             amoCache.put(clientId, requestId, replyBytes);
             logger.debug("Cached reply for AMO: clientId=" + clientId + ", requestId=" + requestId);
         }
         
-        // ========== Send callbacks for state changes ==========
+        // Send callbacks to registered monitors
         if (stateChanged && affectedAccountNo != null && newBalance != null) {
             sendAccountUpdateCallback(affectedAccountNo, newBalance, clientId);
         }

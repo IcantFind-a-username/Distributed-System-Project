@@ -54,20 +54,29 @@ public class BankingService {
     }
     
     /**
-     * Open a new account
-     * Required TLVs: username, password, currency
+     * Open a new account with initial balance
      */
-    public OperationResult openAccount(String username, String password, Currency currency) {
+    public OperationResult openAccount(String username, String password, Currency currency, long initialBalance) {
         if (username == null || password == null || currency == null) {
             return OperationResult.error(StatusCode.BAD_REQUEST);
         }
+        if (initialBalance < 0) {
+            return OperationResult.error(StatusCode.BAD_REQUEST);
+        }
         
-        Account account = accountStore.createAccount(username, password, currency);
+        Account account = accountStore.createAccount(username, password, currency, initialBalance);
         if (account == null) {
             return OperationResult.error(StatusCode.ALREADY_EXISTS);
         }
         
         return OperationResult.success(account);
+    }
+    
+    /**
+     * Open account without initial balance (for backward compatibility)
+     */
+    public OperationResult openAccount(String username, String password, Currency currency) {
+        return openAccount(username, password, currency, 0);
     }
     
     /**
@@ -101,9 +110,9 @@ public class BankingService {
     
     /**
      * Deposit funds into an account
-     * Required TLVs: username, password, accountNo, amountCents
      */
-    public OperationResult deposit(String username, String password, String accountNo, long amountCents) {
+    public OperationResult deposit(String username, String password, String accountNo, 
+            Currency currency, long amountCents) {
         if (username == null || password == null || accountNo == null) {
             return OperationResult.error(StatusCode.BAD_REQUEST);
         }
@@ -122,6 +131,11 @@ public class BankingService {
         }
         if (!account.verifyPassword(password)) {
             return OperationResult.error(StatusCode.AUTH_FAIL);
+        }
+        
+        // Verify currency type matches
+        if (currency != null && account.getCurrency() != currency) {
+            return OperationResult.error(StatusCode.CURRENCY_MISMATCH);
         }
         
         account.deposit(amountCents);
@@ -129,10 +143,17 @@ public class BankingService {
     }
     
     /**
-     * Withdraw funds from an account
-     * Required TLVs: username, password, accountNo, amountCents
+     * Deposit without explicit currency (for backward compatibility)
      */
-    public OperationResult withdraw(String username, String password, String accountNo, long amountCents) {
+    public OperationResult deposit(String username, String password, String accountNo, long amountCents) {
+        return deposit(username, password, accountNo, null, amountCents);
+    }
+    
+    /**
+     * Withdraw funds from an account
+     */
+    public OperationResult withdraw(String username, String password, String accountNo, 
+            Currency currency, long amountCents) {
         if (username == null || password == null || accountNo == null) {
             return OperationResult.error(StatusCode.BAD_REQUEST);
         }
@@ -153,11 +174,23 @@ public class BankingService {
             return OperationResult.error(StatusCode.AUTH_FAIL);
         }
         
+        // Verify currency type matches
+        if (currency != null && account.getCurrency() != currency) {
+            return OperationResult.error(StatusCode.CURRENCY_MISMATCH);
+        }
+        
         if (!account.withdraw(amountCents)) {
             return OperationResult.error(StatusCode.INSUFFICIENT_FUNDS);
         }
         
         return OperationResult.success(account);
+    }
+    
+    /**
+     * Withdraw without explicit currency (for backward compatibility)
+     */
+    public OperationResult withdraw(String username, String password, String accountNo, long amountCents) {
+        return withdraw(username, password, accountNo, null, amountCents);
     }
     
     /**

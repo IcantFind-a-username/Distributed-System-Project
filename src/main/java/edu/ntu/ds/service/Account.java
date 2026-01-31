@@ -17,13 +17,20 @@ public class Account {
     private long balanceCents;
     private final long createdAt;
     
-    public Account(String accountNo, String username, String password, Currency currency) {
+    public Account(String accountNo, String username, String password, Currency currency, long initialBalance) {
         this.accountNo = accountNo;
         this.username = username;
         this.passwordHash = password;  // In production: hash the password
         this.currency = currency;
-        this.balanceCents = 0;
+        this.balanceCents = initialBalance;  // Support initial balance as per project requirement
         this.createdAt = System.currentTimeMillis();
+    }
+    
+    /**
+     * Constructor without initial balance (defaults to 0)
+     */
+    public Account(String accountNo, String username, String password, Currency currency) {
+        this(accountNo, username, password, currency, 0);
     }
     
     /**

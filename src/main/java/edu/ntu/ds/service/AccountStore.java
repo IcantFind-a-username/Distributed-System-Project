@@ -25,22 +25,24 @@ public class AccountStore {
     }
     
     /**
-     * Create a new account
-     * @param username unique username
+     * Create a new account with initial balance
+     * @param username unique username (name of account holder)
      * @param password account password
-     * @param currency account currency
+     * @param currency account currency type
+     * @param initialBalance initial account balance in cents
      * @return the created account, or null if username already exists
      */
-    public Account createAccount(String username, String password, Currency currency) {
+    public Account createAccount(String username, String password, Currency currency, long initialBalance) {
         // Check if username already exists
         if (accountsByUsername.containsKey(username)) {
             return null;
         }
         
-        // Generate unique account number
-        String accountNo = "ACC-" + accountCounter.incrementAndGet();
+        // Generate unique account number (integer as per project requirement)
+        // Account number is an integer, stored as string for protocol compatibility
+        String accountNo = String.valueOf(accountCounter.incrementAndGet());
         
-        Account account = new Account(accountNo, username, password, currency);
+        Account account = new Account(accountNo, username, password, currency, initialBalance);
         
         // Use putIfAbsent for thread safety
         Account existing = accountsByUsername.putIfAbsent(username, account);
@@ -50,6 +52,13 @@ public class AccountStore {
         
         accountsByNo.put(accountNo, account);
         return account;
+    }
+    
+    /**
+     * Create a new account without initial balance (defaults to 0)
+     */
+    public Account createAccount(String username, String password, Currency currency) {
+        return createAccount(username, password, currency, 0);
     }
     
     /**

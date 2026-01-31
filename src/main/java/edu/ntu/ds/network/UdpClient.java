@@ -243,17 +243,25 @@ public class UdpClient {
         return socket.getLocalPort();
     }
     
-    // ========== Convenience methods for creating requests ==========
+    // Request factory methods
     
     /**
-     * Create an OPEN_ACCOUNT request
+     * Create an OPEN_ACCOUNT request with initial balance
      */
-    public Message createOpenAccountRequest(String username, String password, Currency currency) {
+    public Message createOpenAccountRequest(String username, String password, Currency currency, long initialBalance) {
         Message msg = Message.createRequest(OpCode.OPEN_ACCOUNT, clientId, 0, defaultSemantics);
         msg.addField(TlvField.username(username));
         msg.addField(TlvField.password(password));
         msg.addField(TlvField.currency(currency));
+        msg.addField(TlvField.amountCents(initialBalance));
         return msg;
+    }
+    
+    /**
+     * Create an OPEN_ACCOUNT request (backward compatibility, zero initial balance)
+     */
+    public Message createOpenAccountRequest(String username, String password, Currency currency) {
+        return createOpenAccountRequest(username, password, currency, 0);
     }
     
     /**
@@ -268,7 +276,21 @@ public class UdpClient {
     }
     
     /**
-     * Create a DEPOSIT request
+     * Create a DEPOSIT request with currency type
+     */
+    public Message createDepositRequest(String username, String password, String accountNo, 
+            Currency currency, long amountCents) {
+        Message msg = Message.createRequest(OpCode.DEPOSIT, clientId, 0, defaultSemantics);
+        msg.addField(TlvField.username(username));
+        msg.addField(TlvField.password(password));
+        msg.addField(TlvField.accountNo(accountNo));
+        msg.addField(TlvField.currency(currency));
+        msg.addField(TlvField.amountCents(amountCents));
+        return msg;
+    }
+    
+    /**
+     * Create a DEPOSIT request (backward compatibility, no currency validation)
      */
     public Message createDepositRequest(String username, String password, String accountNo, long amountCents) {
         Message msg = Message.createRequest(OpCode.DEPOSIT, clientId, 0, defaultSemantics);
@@ -280,7 +302,21 @@ public class UdpClient {
     }
     
     /**
-     * Create a WITHDRAW request
+     * Create a WITHDRAW request with currency type
+     */
+    public Message createWithdrawRequest(String username, String password, String accountNo, 
+            Currency currency, long amountCents) {
+        Message msg = Message.createRequest(OpCode.WITHDRAW, clientId, 0, defaultSemantics);
+        msg.addField(TlvField.username(username));
+        msg.addField(TlvField.password(password));
+        msg.addField(TlvField.accountNo(accountNo));
+        msg.addField(TlvField.currency(currency));
+        msg.addField(TlvField.amountCents(amountCents));
+        return msg;
+    }
+    
+    /**
+     * Create a WITHDRAW request (backward compatibility, no currency validation)
      */
     public Message createWithdrawRequest(String username, String password, String accountNo, long amountCents) {
         Message msg = Message.createRequest(OpCode.WITHDRAW, clientId, 0, defaultSemantics);

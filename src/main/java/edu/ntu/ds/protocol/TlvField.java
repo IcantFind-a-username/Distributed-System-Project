@@ -31,7 +31,7 @@ public class TlvField {
         this.value = value;
     }
     
-    // ========== Factory methods for creating TLV fields ==========
+    // Factory methods
     
     /**
      * Create a string TLV field
@@ -87,7 +87,7 @@ public class TlvField {
         return new TlvField(type, value);
     }
     
-    // ========== Convenience factory methods ==========
+    // Convenience factory methods
     
     public static TlvField username(String username) {
         return createString(TlvType.USERNAME, username);
@@ -121,7 +121,7 @@ public class TlvField {
         return createString(TlvType.NOTE, note);
     }
     
-    // ========== Encoding ==========
+    // Encoding
     
     /**
      * Encode TLV field to bytes
@@ -147,7 +147,7 @@ public class TlvField {
         return 4 + value.length; // 2 (type) + 2 (length) + value.length
     }
     
-    // ========== Decoding (static methods for parsing) ==========
+    // Decoding
     
     /**
      * Decode a single TLV field from byte array
@@ -211,7 +211,7 @@ public class TlvField {
         }
     }
     
-    // ========== Value getters ==========
+    // Value getters
     
     public TlvType getType() {
         return type;

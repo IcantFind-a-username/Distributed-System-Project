@@ -40,7 +40,7 @@ public class ProtocolTest {
         }
     }
     
-    // ========== Header Tests ==========
+    // Header tests
     
     private static void testHeaderEncodeDecode() {
         System.out.println("Test: Header Encode/Decode");
@@ -94,7 +94,7 @@ public class ProtocolTest {
         }
     }
     
-    // ========== TLV Tests ==========
+    // TLV tests
     
     private static void testTlvStringField() {
         System.out.println("Test: TLV String Field");
@@ -185,7 +185,7 @@ public class ProtocolTest {
         }
     }
     
-    // ========== Payload Tests ==========
+    // Payload tests
     
     private static void testPayloadEncodeDecode() {
         System.out.println("Test: Payload Encode/Decode");
@@ -213,7 +213,7 @@ public class ProtocolTest {
         }
     }
     
-    // ========== Full Message Tests ==========
+    // Full message tests
     
     private static void testFullMessageOpenAccount() {
         System.out.println("Test: Full Message - OPEN_ACCOUNT Request");
@@ -384,7 +384,7 @@ public class ProtocolTest {
         }
     }
     
-    // ========== Test Utilities ==========
+    // Test utilities
     
     private static void assertEquals(String name, Object expected, Object actual) {
         if (!expected.equals(actual)) {

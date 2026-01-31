@@ -30,7 +30,7 @@ public class Message {
         this.crc32 = null;
     }
     
-    // ========== Factory methods for creating request messages ==========
+    // Factory methods
     
     /**
      * Create a request message
@@ -74,7 +74,7 @@ public class Message {
         return msg;
     }
     
-    // ========== Encoding ==========
+    // Encoding
     
     /**
      * Encode complete message to bytes
@@ -112,7 +112,7 @@ public class Message {
         return buffer.array();
     }
     
-    // ========== Decoding ==========
+    // Decoding
     
     /**
      * Decode message from bytes
@@ -182,7 +182,7 @@ public class Message {
         return msg;
     }
     
-    // ========== Getters and setters ==========
+    // Getters and setters
     
     public Header getHeader() {
         return header;
