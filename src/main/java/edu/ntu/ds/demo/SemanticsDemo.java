@@ -41,7 +41,11 @@ public class SemanticsDemo {
         System.out.println("of non-idempotent operations when packet loss causes retries.");
         System.out.println();
         System.out.println("Make sure the server is running with reply loss enabled!");
-        System.out.println("Example: mvn exec:java -Dexec.mainClass=\"edu.ntu.ds.server.BankServer\" -Dexec.args=\"8888 0 30\"");
+        System.out.println("Example: mvn compile exec:java -Dexec.mainClass=\"edu.ntu.ds.server.BankServer\" -Dexec.args=\"8888 0 30\"");
+        System.out.println();
+        System.out.println("NOTE: Packet loss is PROBABILISTIC. You may need to run multiple times");
+        System.out.println("to see retries. Higher loss = more likely to demonstrate the effect.");
+        System.out.println("Try 50% loss for more obvious results: -Dexec.args=\"8888 0 50\"");
         System.out.println();
         
         try {
@@ -70,6 +74,10 @@ public class SemanticsDemo {
             System.out.println("Check the server logs to see:");
             System.out.println("- '[FROM AMO CACHE]' entries showing duplicate suppression in AMO mode");
             System.out.println("- Multiple TRANSFER executions in ALO mode");
+            System.out.println();
+            System.out.println("NOTE: Packet loss is probabilistic (30%). If you didn't see retries,");
+            System.out.println("run the demo again. The more loss, the more likely to see the effect.");
+            System.out.println("You can increase loss rate: -Dexec.args=\"8888 0 50\" for 50% reply loss");
             
         } catch (Exception e) {
             System.err.println("Demo error: " + e.getMessage());
@@ -101,16 +109,38 @@ public class SemanticsDemo {
             
             Message openReq1 = client1.createOpenAccountRequest(username1, PASSWORD, Currency.SGD);
             Message openRep1 = client1.sendRequest(openReq1);
-            if (openRep1 == null || openRep1.getHeader().getStatus() != StatusCode.OK) {
-                throw new RuntimeException("Failed to create account 1");
+            if (openRep1 == null) {
+                throw new RuntimeException("Failed to create account 1 - timeout");
+            }
+            if (openRep1.getHeader().getStatus() == StatusCode.ALREADY_EXISTS && semantics == Semantics.ALO) {
+                System.out.println("\n  *** ALO PROBLEM DETECTED! ***");
+                System.out.println("  Account creation returned ALREADY_EXISTS!");
+                System.out.println("  This means:");
+                System.out.println("    1. First request executed successfully (account created)");
+                System.out.println("    2. Reply was lost (simulated packet loss)");
+                System.out.println("    3. Client retried with same request");
+                System.out.println("    4. Server executed AGAIN (ALO mode) -> account already exists!");
+                System.out.println("  This demonstrates why ALO breaks non-idempotent operations.\n");
+                return; // Demo complete - we've shown the problem
+            }
+            if (openRep1.getHeader().getStatus() != StatusCode.OK) {
+                throw new RuntimeException("Failed to create account 1: " + openRep1.getHeader().getStatus());
             }
             String account1 = openRep1.getPayload().getAccountNo();
             System.out.println("  Account 1 created: " + account1);
             
             Message openReq2 = client2.createOpenAccountRequest(username2, PASSWORD, Currency.SGD);
             Message openRep2 = client2.sendRequest(openReq2);
-            if (openRep2 == null || openRep2.getHeader().getStatus() != StatusCode.OK) {
-                throw new RuntimeException("Failed to create account 2");
+            if (openRep2 == null) {
+                throw new RuntimeException("Failed to create account 2 - timeout");
+            }
+            if (openRep2.getHeader().getStatus() == StatusCode.ALREADY_EXISTS && semantics == Semantics.ALO) {
+                System.out.println("\n  *** ALO PROBLEM DETECTED during account 2 creation! ***");
+                System.out.println("  Same issue as above - ALO caused duplicate execution.\n");
+                return;
+            }
+            if (openRep2.getHeader().getStatus() != StatusCode.OK) {
+                throw new RuntimeException("Failed to create account 2: " + openRep2.getHeader().getStatus());
             }
             String account2 = openRep2.getPayload().getAccountNo();
             System.out.println("  Account 2 created: " + account2);

@@ -72,30 +72,30 @@ mvn package
 
 ```bash
 # Basic server on port 8888
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888"
 
 # Server with packet loss simulation (20% request loss, 20% reply loss)
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888 20 20"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888 20 20"
 ```
 
 ### Start an Interactive Client
 
 ```bash
 # Basic client connecting to localhost:8888
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888"
 
 # Client with specific ID and ALO semantics
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888 1001 ALO"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888 1001 ALO"
 
 # Client with AMO semantics (default)
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888 1002 AMO"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888 1002 AMO"
 ```
 
 ### Start a Monitor Client
 
 ```bash
 # Monitor client to observe callbacks
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.client.MonitorClient" -Dexec.args="localhost 8888 9999 300 300"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.client.MonitorClient" -Dexec.args="localhost 8888 9999 300 300"
 ```
 
 ## Client Commands
@@ -195,18 +195,18 @@ With packet loss enabled:
 
 ### Terminal 1: Start Server with Packet Loss
 ```bash
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888 0 30"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888 0 30"
 ```
 (30% reply loss to trigger retries)
 
 ### Terminal 2: Start Monitor Client
 ```bash
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.client.MonitorClient" -Dexec.args="localhost 8888 9999 300 300"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.client.MonitorClient" -Dexec.args="localhost 8888 9999 300 300"
 ```
 
 ### Terminal 3: Interactive Client with AMO
 ```bash
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888 1001 AMO"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888 1001 AMO"
 ```
 
 Then in client:
@@ -220,7 +220,7 @@ transfer ACC-1002 100
 
 ### Terminal 4: Second Interactive Client (for receiving transfers)
 ```bash
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888 1002 AMO"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888 1002 AMO"
 ```
 
 ```

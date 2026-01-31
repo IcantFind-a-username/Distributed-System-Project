@@ -7,6 +7,7 @@ This document provides step-by-step instructions for demonstrating the system's 
 - Java 17 or higher
 - Maven 3.6+
 - Multiple terminal windows
+- **Important**: First compile the project once: `mvn compile`
 
 ## Demo 1: Basic Banking Operations
 
@@ -14,7 +15,7 @@ This document provides step-by-step instructions for demonstrating the system's 
 
 ```bash
 # Terminal 1
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888"
 ```
 
 Expected output:
@@ -33,7 +34,7 @@ Expected output:
 ### Step 2: Start Interactive Client
 
 ```bash
-# Terminal 2
+# Terminal 2 (compile already done, can use exec:java directly)
 mvn exec:java -Dexec.mainClass="edu.ntu.ds.client.BankClient" -Dexec.args="localhost 8888"
 ```
 
@@ -70,7 +71,7 @@ Balance: $749.50 SGD
 
 ```bash
 # Terminal 1
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888"
 ```
 
 ### Step 2: Start Monitor Client
@@ -135,18 +136,24 @@ In Terminal 2 (Monitor), you should see:
 
 ## Demo 3: ALO vs AMO Semantics Under Packet Loss
 
-This is the key demonstration showing why At-Most-Once semantics matter.
+This is the **key demonstration** showing why At-Most-Once semantics matter.
+
+### Important Notes
+
+1. **Packet loss is PROBABILISTIC** - You may need to run multiple times to see retries
+2. **Higher loss rate = more obvious results** - Use 50% for clearer demonstration
+3. **Watch the server logs** to see `[FROM AMO CACHE]` entries
 
 ### Step 1: Start Server WITH Packet Loss
 
 ```bash
-# Terminal 1 - 30% reply loss to trigger retries
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888 0 30"
+# Terminal 1 - 50% reply loss for more obvious demonstration
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888 0 50"
 ```
 
 Note the loss simulation is enabled:
 ```
-║  Loss Simulation: req=0%, rep=30%                 ║
+║  Loss Simulation: req=0%, rep=50%                 ║
 ```
 
 ### Step 2: Run Automated Demo
@@ -159,45 +166,89 @@ mvn exec:java -Dexec.mainClass="edu.ntu.ds.demo.SemanticsDemo" -Dexec.args="loca
 ### Expected Results
 
 #### Phase 1: AMO Semantics (Correct)
+
+When retries occur (you'll see `attempt=1`, `attempt=2`, etc.), AMO cache ensures correctness:
+
 ```
-[Step 4] Checking final balances...
-  ACC-1001 balance: $900.00
-  ACC-1002 balance: $1100.00
+[Step 3] Transferring $100 from Account 1 to Account 2...
+  Semantics: AMO
+[19:11:26.774] [CLIENT-10795] [INFO] SEND to 127.0.0.1:8888 | op=TRANSFER | reqId=... | attempt=1
+[19:11:27.276] [CLIENT-10795] [WARN] Timeout (attempt 1/6, timeout=500ms)
+[19:11:27.277] [CLIENT-10795] [INFO] SEND to 127.0.0.1:8888 | op=TRANSFER | reqId=... | attempt=2
+[19:11:27.278] [CLIENT-10795] [INFO] RECV from 127.0.0.1:8888 | status=OK | reqId=...
+  Transfer completed!
 
 [Verification]
   ✓ CORRECT: Balances match expected values
+    Account 1: Expected $900.00, Got $900.00
+    Account 2: Expected $1100.00, Got $1100.00
 ```
 
-Even with retries (visible in logs), the AMO cache prevents double execution.
-
-#### Phase 2: ALO Semantics (May Be Incorrect)
+**Server log shows AMO cache in action:**
 ```
-[Step 4] Checking final balances...
-  ACC-1003 balance: $800.00  (Should be $900!)
-  ACC-1004 balance: $1200.00 (Should be $1100!)
+[INFO] REPLY to ... | status=OK | reqId=... | [FROM AMO CACHE]
+```
 
+#### Phase 2: ALO Semantics (Shows the Problem!)
+
+ALO may fail in two ways:
+
+**Case A: Balance becomes incorrect (transfer executed multiple times)**
+```
 [Verification]
   ✗ INCORRECT: Balances do not match!
+    Account 1: Expected $900.00, Got $800.00  <-- $100 transferred twice!
+    Account 2: Expected $1100.00, Got $1200.00
   This is expected with ALO semantics under packet loss!
-  The transfer was likely executed multiple times due to retries.
+```
+
+**Case B: Operation fails with ALREADY_EXISTS (more common)**
+```
+[Step 1] Creating two accounts...
+[INFO] SEND to 127.0.0.1:8888 | op=OPEN_ACCOUNT | reqId=... | attempt=1
+[WARN] Timeout (attempt 1/6, timeout=500ms)
+[INFO] SEND to 127.0.0.1:8888 | op=OPEN_ACCOUNT | reqId=... | attempt=2
+[WARN] Timeout (attempt 2/6, timeout=1000ms)
+[INFO] SEND to 127.0.0.1:8888 | op=OPEN_ACCOUNT | reqId=... | attempt=3
+[INFO] RECV from 127.0.0.1:8888 | status=ALREADY_EXISTS | reqId=...
+
+  *** ALO PROBLEM DETECTED! ***
+  Account creation returned ALREADY_EXISTS!
+  This means:
+    1. First request executed successfully (account created)
+    2. Reply was lost (simulated packet loss)
+    3. Client retried with same request
+    4. Server executed AGAIN (ALO mode) -> account already exists!
+  This demonstrates why ALO breaks non-idempotent operations.
 ```
 
 ### Server Log Analysis
 
-Watch the server logs during the demo:
+**Watch the server logs carefully during the demo:**
 
-**AMO Mode:**
+**AMO Mode - Duplicate suppression:**
 ```
-[INFO] REPLY to ... | status=OK | reqId=... | [FROM AMO CACHE]
-```
-The "[FROM AMO CACHE]" indicates duplicate requests were handled correctly.
+[INFO] REQUEST from ... | op=TRANSFER | clientId=10795 | reqId=46364171960323
+[INFO] Processing TRANSFER: from=ACC-1001 to=ACC-1002 amount=$100.00
+[INFO] REPLY to ... | status=OK | reqId=46364171960323
+[WARN] [SIMULATED LOSS] REPLY dropped | reqId=46364171960323
 
-**ALO Mode:**
+[INFO] REQUEST from ... | op=TRANSFER | clientId=10795 | reqId=46364171960323  <-- Same reqId!
+[INFO] AMO cache hit for clientId=10795, requestId=46364171960323
+[INFO] REPLY to ... | status=OK | reqId=46364171960323 | [FROM AMO CACHE]  <-- Cached reply!
 ```
-[INFO] Processing TRANSFER: from=ACC-... to=ACC-... amount=$100.00
-[INFO] Processing TRANSFER: from=ACC-... to=ACC-... amount=$100.00
+
+**ALO Mode - Double execution:**
 ```
-Multiple TRANSFER log entries show the operation was executed multiple times.
+[INFO] REQUEST from ... | op=TRANSFER | clientId=10245 | reqId=44001939947523
+[INFO] Processing TRANSFER: from=ACC-1003 to=ACC-1004 amount=$100.00  <-- First execution
+[INFO] REPLY to ... | status=OK | reqId=44001939947523
+[WARN] [SIMULATED LOSS] REPLY dropped | reqId=44001939947523
+
+[INFO] REQUEST from ... | op=TRANSFER | clientId=10245 | reqId=44001939947523  <-- Same reqId!
+[INFO] Processing TRANSFER: from=ACC-1003 to=ACC-1004 amount=$100.00  <-- Second execution!
+[INFO] REPLY to ... | status=OK | reqId=44001939947523
+```
 
 ## Demo 4: Manual ALO vs AMO Testing
 
@@ -205,7 +256,7 @@ Multiple TRANSFER log entries show the operation was executed multiple times.
 
 ```bash
 # Terminal 1
-mvn exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888 0 30"
+mvn compile exec:java -Dexec.mainClass="edu.ntu.ds.server.BankServer" -Dexec.args="8888 0 50"
 ```
 
 ### Step 2: Client A (Alice) - AMO Mode
@@ -260,15 +311,15 @@ Even if you see retries in the logs, balances are correct!
 
 ### Step 5: Switch to ALO and Repeat
 
-In Terminal 2:
+In Terminal 2 (Alice):
 ```
 > semantics ALO
 Semantics set to: ALO
 
-> transfer ACC-1002 100
+> deposit 100
 ```
 
-Now if retries occur, balances may become incorrect!
+If retries occur (check logs), balance may increase by more than $100!
 
 ## Key Points to Highlight
 
@@ -284,9 +335,19 @@ Now if retries occur, balances may become incorrect!
 - Check server is running on correct port
 - Check firewall settings
 
+### No retries visible in demo
+- Packet loss is probabilistic
+- Increase loss rate to 50%: `-Dexec.args="8888 0 50"`
+- Run the demo multiple times
+
 ### No callbacks received
 - Ensure monitor registered before operations
 - Check monitor TTL hasn't expired
 
 ### Incorrect balances in ALO mode
-- This is EXPECTED behavior - it demonstrates why AMO is important!
+- This is **EXPECTED behavior** - it demonstrates why AMO is important!
+
+### ALREADY_EXISTS error in ALO mode
+- This is also **EXPECTED** - it shows ALO re-executed the operation
+- The first execution succeeded, but reply was lost
+- Retry caused second execution which found the resource already exists
