@@ -254,7 +254,7 @@ Per Protocol v1.1:
 
 ## Team Members
 
-(Add your team members here)
+Xu Yiqun, Zhang Hanyu, Ma Xinyi, Zhu ruiqi
 
 ## License
 
